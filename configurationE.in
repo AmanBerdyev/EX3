@@ -1,0 +1,18 @@
+% Parametres physiques :
+tFin     = 6.343739849219413e+03
+d        = 0.04
+Omega    = 9.904544411531507
+kappa    = 0
+m        = 0.1
+g        = 9.81
+L        = 0.1
+theta0   = 0
+thetadot0 = 0.01
+
+% Parametres numeriques :
+dt       = 0.02
+output   = a.out
+sampling = 5
+
+% (i)  Convergence :       tFin     = 12.687479698438827
+% (ii) Sections Poincare : tFin     = 6.343739849219413e+03
