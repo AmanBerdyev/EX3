@@ -7,6 +7,8 @@
 % par la valeur scannee.
 %
 
+set(groot, 'DefaultTextInterpreter',            'LaTeX' );
+
 %% Donnees %%
 %%%%%%%%%%%%%
 
@@ -15,21 +17,22 @@ g      = 9.81;
 L      = 0.1;
 theta0 = 1e-6;
 omega0 = sqrt(g/L);
-tfin   = 20000 * pi / omega0; % 20 dans (a), (b) ; 40 * pi / omega0 dans (e).
-n      = 5;
+tfin   = 20; % 20 dans (a), (b) ; 40 * pi / omega0 dans (e).
+% 20000 * pi / omega0
+n      = 100;
 
 %% Parametres %%
 %%%%%%%%%%%%%%%%
 
 repertoire = './'; % Chemin d'acces au code compile (NB: enlever le ./ sous Windows)
 executable = 'Exercice3'; % Nom de l'executable (NB: ajouter .exe sous Windows)
-input = 'configurationE.in'; % Nom du fichier d'entree de base
+input = 'configurationAB.in'; % Nom du fichier d'entree de base
 
 nsimul = 20; % Nombre de simulations a faire
 
 % SUPPRIMER LES SIMULATIONS ANTERIEURES
 mode = 0; % Simulation, si mode = 1; suppression, si mode = -1.
-tache = 'poincarE'; % Tache a executer
+tache = 'anperB'; % Tache a executer
 % Taches : model ; convA ; compsolA ; anperB ; convE ; poincarE
 
 dt = tfin ./ (1e3:450:1e4-450); % TODO: Choisir des valeurs de dt pour faire une etude de convergence
@@ -38,8 +41,8 @@ dt = tfin ./ (1e3:450:1e4-450); % TODO: Choisir des valeurs de dt pour faire une
 Omega = ones(1,nsimul); % TODO: Choisir des valeurs de Omega pour trouver la resonance
 thetavar0 = linspace(pi/(nsimul+1), pi - pi/(nsimul+1), nsimul);
 
-paramstr = 'dt'; % Nom du parametre a scanner (changer ici 'dt' ou 'Omega' ou autre)
-param = dt; % Valeurs du parametre a scanner (changer ici dt ou Omega ou autre)
+paramstr = 'theta0'; % Nom du parametre a scanner (changer ici 'dt' ou 'Omega' ou autre)
+param = thetavar0; % Valeurs du parametre a scanner (changer ici dt ou Omega ou autre)
 
 output = cell(1, nsimul); % Tableau de cellules contenant le nom des fichiers de sortie
 for i = 1:nsimul
@@ -74,15 +77,17 @@ end
 %%%%%%%%%%%%%%%%%%
 
 if strcmp(tache, 'model')
-    data = load(output{1});
+    data = load('a.out');
     time  = data(:,1);
     theta = data(:,2);
     
     figure
     plot(L*sin(theta),-L*cos(theta),'b.')
+    axis equal
     grid on
     figure
     plot3(L*sin(theta),time,-L*cos(theta),'b.')
+    axis equal
     grid on
 end
 
@@ -185,6 +190,26 @@ if strcmp(tache, 'anperB')
     Tth    = 4/omega0 * ellipticK(sin(thetavar0/2).*sin(thetavar0/2));
     erreur = ones(1,nsimul);
     
+    last    = 250;
+    data    = load(output{20});
+    t       = data(:,1);
+    theta   = data(:,2);
+    
+    figure
+    plot(t(1:last), theta(1:last), 'b+--', [t(1) t(last)], [0, 0], 'k')
+    ylabel('$\theta$ [rad]')
+    xlabel('$t$ [s]')
+    grid on
+    hold on
+    
+    sgn   = sign(theta(1));
+    for j = 2:last
+        if not(sgn == sign(theta(j)))
+            plot(t(j), theta(j), 'r+')
+            sgn = sign(theta(j));
+        end
+    end
+    
     for i = 1:nsimul % Parcours des resultats de toutes les simulations
         data    = load(output{i}); % Chargement du fichier de sortie de la i-ieme simulation
         t       = data(:,1);
@@ -193,6 +218,7 @@ if strcmp(tache, 'anperB')
         nchange = 0;
         for j = 2:length(theta)
             if not(sgn == sign(theta(j)))
+                
                 nchange = nchange + 1;
                 tchange = (t(j-1) + t(j))/2;
                 sgn = sign(theta(j));
@@ -201,16 +227,25 @@ if strcmp(tache, 'anperB')
         T(i)      = 4*tchange/(2*nchange-1);
         erreur(i) = T(i) - Tth(i);
     end
+    
+    hold off
+    
     figure
-    plot(thetavar0,T,'b+',thetavar0,Tth,'r+')
-    xlabel('\theta_0 [rad]')
-    ylabel('Periode T(\theta_0)')
+    plot(thetavar0,T,'b+')
+    xlabel('$\theta_0$ [rad]')
+    ylabel('Period $T(\theta_0)$ [s]')
+    grid on
+    
+    figure
+    plot(thetavar0,Tth,'r+')
+    xlabel('$\theta_0$ [rad]')
+    ylabel('Period $T(\theta_0)$ [s]')
     grid on
     
     figure
     plot(thetavar0,erreur,'k+')
-    xlabel('\theta_0 [rad]')
-    ylabel('Erreur sur la periode')
+    xlabel('$\theta_0$ [rad]')
+    ylabel('Error [s]')
     grid on
 end
 
@@ -239,20 +274,45 @@ if strcmp(tache, 'convE')
     grid on
 end
 
-%% Sections de Poincare %%
-%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Sections de Poincare (e) %%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 if strcmp(tache, 'poincarE')
-    cmd = sprintf('%s%s %s dt=%s output=%s', repertoire, executable, input, num2str(2 * pi / (omega0 * n)), 'a.out');
-    disp(cmd)
-    system(cmd);
     
-    data     = load('a.out');
+    thetavar0    = -3*pi/4:pi/4:3*pi/4;
+    thetadotvar0 = 0;
+    k = 0.01;
+    for p = 1:3
+        thetavardot0 = horzcat(thetadotvar0, [1*k 3*k 5*k]);
+        k = 10*k;
+    end
+    erreur       = 1e-8;
+    
+    name = cell(length(thetavar0), length(thetadotvar0));
+    for i = 1:length(thetavar0)
+        for j = 1:length(thetadotvar0)
+            name{i,j} = ['theta0=', num2str(thetavar0(i)), '_thetadot0=', num2str(thetadotvar0(j)), '.out'];
+            cmd = sprintf('%s%s %s theta0=%s thetadot0=%s dt=%s output=%s', ...
+            repertoire, executable, input, num2str(thetavar0(i)), num2str(thetadotvar0(j)), num2str(2 * pi / (omega0 * n)), name{i,j});
+            disp(cmd)
+            system(cmd);
+        end
+    end
+    
+    data     = load(name{1,1});
     theta    = data(101:end,2);
     thetadot = data(101:end,3);
     
     figure
     plot(theta, thetadot, 'b.')
+    title(sprintf('theta_0 = %g ; thetadot_0 = %d', theta0, thetadot0))
+    xlabel('\theta [rad]')
+    ylabel('dot \theta [rad]')
+    grid on
+    
+    figure
+    plot(L*sin(theta),-L*cos(theta),'b.')
+    axis equal
     grid on
 end
 
