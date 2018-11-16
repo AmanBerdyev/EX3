@@ -281,7 +281,7 @@ if strcmp(tache, 'poincarE')
     
     % Initialisation des conditions initiales
     
-    thetavar0    = 0:pi/6:pi;
+    thetavar0    = 0:pi/18:4*pi/6;
     thetadotvar0 = horzcat(0, logspace(-2, 2, 5));
     
     n1 = length(thetavar0);
@@ -289,13 +289,13 @@ if strcmp(tache, 'poincarE')
     
     % Simulations
     
-    %
+    %{
     name = cell(n1, n2);
     for i = 1:n1
         for j = 1:n2
             name{i,j} = ['theta0=', num2str(thetavar0(i)), '_thetadot0=', num2str(thetadotvar0(j)), '.out'];
             cmd = sprintf('%s%s %s theta0=%s thetadot0=%s dt=%s output=%s', ...
-            repertoire, executable, input, num2str(thetavar0(i)), num2str(thetadotvar0(j)), num2str(2 * pi / (omega0 * n)), name{i,j});
+            repertoire, executable, input, num2str(thetavar0(i),14), num2str(thetadotvar0(j),14), num2str(2 * pi / (omega0 * n),14), name{i,j});
             disp(cmd)
             system(cmd);
         end
@@ -303,7 +303,7 @@ if strcmp(tache, 'poincarE')
     %}
     
     % Sections de Poincare
-    
+    %{
     for j = 1:1
         figure
         title(sprintf('omega 0 = %s', num2str(thetadotvar0(j))))
@@ -311,7 +311,7 @@ if strcmp(tache, 'poincarE')
         ylabel('$\omega$ [rad]')
         grid on
         hold on
-        for i = 1:5
+        for i = 1:n1
             data     = load(name{i,j});
             theta    = wrapToPi(data(101:end,2));
             thetadot = data(101:end,3);
@@ -319,27 +319,55 @@ if strcmp(tache, 'poincarE')
         end
         hold off
     end
+    %}
     
     % Comparaison de deux simulations chaotiques proches
-    %{
-    delta    = 1e-8;
+    %
+    theta01   = thetavar0(3);
+    theta02   = thetavar0(3) + 1e-8;
+    thetadot0 = thetadotvar0(1);
     
-    theta01   = [thetavar0(5) (thetavar0(5) + delta)];
-    thetadot01 = thetadotvar0(1);
-    
-    name1 = ['Chaos:_theta0=', num2str(thetavar0(i)), '_thetadot0=', num2str(thetadotvar0(j)), '.out'];
+    name1 = ['Chaos1:_theta0=', num2str(theta01), '_thetadot0=', num2str(thetadot0), '.out'];
     system(sprintf('%s%s %s theta0=%s thetadot0=%s dt=%s output=%s', ...
             repertoire, executable, input, ...
-            num2str(thetavar0(i)), num2str(thetadotvar0(j)), ...
-            num2str(2 * pi / (omega0 * n)), name1))
+            num2str(theta01,14), num2str(thetadot0,14), ...
+            num2str(2 * pi / (omega0 * n),14), name1))
         
-    data1     = load(name{5,1});
-    theta1    = wrapToPi(data(101:end,2));
-    thetadot1 = data(101:end,3);
+    name2 = ['Chaos2:_theta0=', num2str(theta02), '_thetadot0=', num2str(thetadot0), '.out'];
+    system(sprintf('%s%s %s theta0=%s thetadot0=%s dt=%s output=%s', ...
+            repertoire, executable, input, ...
+            num2str(theta02,14), num2str(thetadot0,14), ...
+            num2str(2 * pi / (omega0 * n),14), name2))
+        
+    data1     = load(name1);
+    t1        = data1(:,1);
+    theta1    = data1(:,2);
+    thetadot1 = data1(:,3);
     
-    data2     = load(name{5,1});
-    theta2    = wrapToPi(data(101:end,2));
-    thetadot2 = data(101:end,3);
+    data2     = load(name2);
+    t2        = data2(:,1);
+    theta2    = data2(:,2);
+    thetadot2 = data2(:,3);
+    
+    d  = ones(1,length(t1));
+    
+    for i = 1:length(d)
+        d(i)  = sqrt((thetadot1(i)-thetadot2(i))*(thetadot1(i)-thetadot2(i)) ...
+              + omega0*omega0*(theta1(i)-theta2(i))*(theta1(i)-theta2(i)));
+    end
+    
+    figure
+    plot(t1,log(d),'b')
+    grid on
+    
+    figure
+    plot(t1,wrapToPi(theta1),'b',t2,wrapToPi(theta2),'r')
+    grid on
+    
+    figure
+    plot(t1,thetadot1,'b',t2,thetadot2,'r')
+    grid on
+    
     %}
 end
 
