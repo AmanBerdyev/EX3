@@ -7,7 +7,7 @@
 % par la valeur scannee.
 %
 
-set(groot, 'DefaultTextInterpreter',            'LaTeX' );
+ set(groot, 'DefaultTextInterpreter',            'LaTeX' );
 
 %% Donnees %%
 %%%%%%%%%%%%%
@@ -17,7 +17,7 @@ g      = 9.81;
 L      = 0.1;
 theta0 = 1e-6;
 omega0 = sqrt(g/L);
-tfin   = 20; % 20 dans (a), (b) ; 40 * pi / omega0 dans (e).
+tfin   = 20000 * pi / omega0; % 20 dans (a), (b) ; 40 * pi / omega0 dans (e).
 % 20000 * pi / omega0
 n      = 100;
 
@@ -26,13 +26,13 @@ n      = 100;
 
 repertoire = './'; % Chemin d'acces au code compile (NB: enlever le ./ sous Windows)
 executable = 'Exercice3'; % Nom de l'executable (NB: ajouter .exe sous Windows)
-input = 'configurationAB.in'; % Nom du fichier d'entree de base
+input = 'configurationE.in'; % Nom du fichier d'entree de base
 
 nsimul = 20; % Nombre de simulations a faire
 
 % SUPPRIMER LES SIMULATIONS ANTERIEURES
 mode = 0; % Simulation, si mode = 1; suppression, si mode = -1.
-tache = 'anperB'; % Tache a executer
+tache = 'poincarE'; % Tache a executer
 % Taches : model ; convA ; compsolA ; anperB ; convE ; poincarE
 
 dt = tfin ./ (1e3:450:1e4-450); % TODO: Choisir des valeurs de dt pour faire une etude de convergence
@@ -41,8 +41,8 @@ dt = tfin ./ (1e3:450:1e4-450); % TODO: Choisir des valeurs de dt pour faire une
 Omega = ones(1,nsimul); % TODO: Choisir des valeurs de Omega pour trouver la resonance
 thetavar0 = linspace(pi/(nsimul+1), pi - pi/(nsimul+1), nsimul);
 
-paramstr = 'theta0'; % Nom du parametre a scanner (changer ici 'dt' ou 'Omega' ou autre)
-param = thetavar0; % Valeurs du parametre a scanner (changer ici dt ou Omega ou autre)
+paramstr = 'dt'; % Nom du parametre a scanner (changer ici 'dt' ou 'Omega' ou autre)
+param = dt; % Valeurs du parametre a scanner (changer ici dt ou Omega ou autre)
 
 output = cell(1, nsimul); % Tableau de cellules contenant le nom des fichiers de sortie
 for i = 1:nsimul
@@ -279,18 +279,20 @@ end
 
 if strcmp(tache, 'poincarE')
     
-    thetavar0    = -3*pi/4:pi/4:3*pi/4;
-    thetadotvar0 = 0;
-    k = 0.01;
-    for p = 1:3
-        thetavardot0 = horzcat(thetadotvar0, [1*k 3*k 5*k]);
-        k = 10*k;
-    end
-    erreur       = 1e-8;
+    % Initialisation des conditions initiales
     
-    name = cell(length(thetavar0), length(thetadotvar0));
-    for i = 1:length(thetavar0)
-        for j = 1:length(thetadotvar0)
+    thetavar0    = 0:pi/6:pi;
+    thetadotvar0 = horzcat(0, logspace(-2, 2, 5));
+    
+    n1 = length(thetavar0);
+    n2 = length(thetadotvar0);
+    
+    % Simulations
+    
+    %
+    name = cell(n1, n2);
+    for i = 1:n1
+        for j = 1:n2
             name{i,j} = ['theta0=', num2str(thetavar0(i)), '_thetadot0=', num2str(thetadotvar0(j)), '.out'];
             cmd = sprintf('%s%s %s theta0=%s thetadot0=%s dt=%s output=%s', ...
             repertoire, executable, input, num2str(thetavar0(i)), num2str(thetadotvar0(j)), num2str(2 * pi / (omega0 * n)), name{i,j});
@@ -298,21 +300,46 @@ if strcmp(tache, 'poincarE')
             system(cmd);
         end
     end
+    %}
     
-    data     = load(name{1,1});
-    theta    = data(101:end,2);
-    thetadot = data(101:end,3);
+    % Sections de Poincare
     
-    figure
-    plot(theta, thetadot, 'b.')
-    title(sprintf('theta_0 = %g ; thetadot_0 = %d', theta0, thetadot0))
-    xlabel('\theta [rad]')
-    ylabel('dot \theta [rad]')
-    grid on
+    for j = 1:1
+        figure
+        title(sprintf('omega 0 = %s', num2str(thetadotvar0(j))))
+        xlabel('$\theta$ [rad]')
+        ylabel('$\omega$ [rad]')
+        grid on
+        hold on
+        for i = 1:5
+            data     = load(name{i,j});
+            theta    = wrapToPi(data(101:end,2));
+            thetadot = data(101:end,3);
+            plot(theta, thetadot, '.')
+        end
+        hold off
+    end
     
-    figure
-    plot(L*sin(theta),-L*cos(theta),'b.')
-    axis equal
-    grid on
+    % Comparaison de deux simulations chaotiques proches
+    %{
+    delta    = 1e-8;
+    
+    theta01   = [thetavar0(5) (thetavar0(5) + delta)];
+    thetadot01 = thetadotvar0(1);
+    
+    name1 = ['Chaos:_theta0=', num2str(thetavar0(i)), '_thetadot0=', num2str(thetadotvar0(j)), '.out'];
+    system(sprintf('%s%s %s theta0=%s thetadot0=%s dt=%s output=%s', ...
+            repertoire, executable, input, ...
+            num2str(thetavar0(i)), num2str(thetadotvar0(j)), ...
+            num2str(2 * pi / (omega0 * n)), name1))
+        
+    data1     = load(name{5,1});
+    theta1    = wrapToPi(data(101:end,2));
+    thetadot1 = data(101:end,3);
+    
+    data2     = load(name{5,1});
+    theta2    = wrapToPi(data(101:end,2));
+    thetadot2 = data(101:end,3);
+    %}
 end
 
